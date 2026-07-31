@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "attribute_dice",
   "version": "${version}",
-  "name": "Attribute Dice",
-  "description": "Roll a magic dice to gain or lose attributes. Roll high to gain stats, roll low to lose stats, and beware rolling a 1!",
+  "name": "属性骰子",
+  "description": "投掷魔法骰子来获得或失去属性。投出高点数获得属性，投出低点数失去属性，小心投出1点！",
   "authors": [
     "sixhertz666"
   ],

@@ -1,42 +1,41 @@
-# Attribute Dice
+# 属性骰子
 
-A Minecraft Java 1.21.11 Fabric mod where players use rare materials to craft Attribute Dice and enhance their attributes! Roll high to gain stats (damage / armor / max health); roll low to lose them. Beware rolling a 1 — lightning strikes!
+这是一个 Minecraft Java 1.21.11 Fabric 模组，玩家可以使用稀有材料制作属性骰子来增强属性！投出高点数获得属性（伤害 / 护甲 / 最大生命值）；投出低点数失去属性。小心投出1点——会被闪电击中！
 
-> Tip: Too much gambling can hurt you, so don't overuse it!
+> 提示：过度赌博可能会伤害到你，所以不要过度使用！
 
-## Features
+## 特性
 
-- **Crafting recipe** (3x3): 4 corners = Gold Block, center = Netherite Block, remaining 4 slots = Diamond.
-- **Right-click** the dice item to throw a spinning dice entity in front of you. After ~3 seconds it stops and shows the rolled face.
-- **4 / 5 / 6 (high)**: gain a random attribute (Attack Damage / Armor / Max Health), value in `[gainMin, gainMax]` (default `[1, 10]`).
-- **1 / 2 / 3 (low)**: lose a random attribute, value in `[lossMin, lossMax]` (default `[1, 5]`).
-- **Rolling a 1**: also deals `lightningDamage` lightning damage (default 10) and strikes the player with a lightning bolt.
-- Each face (1–6) is equally likely.
-- Chat message shows the roll value: red for 1/2/3, green for 4/5/6.
+- **合成配方**（3x3）：四角为金块，中心为下界合金块，其余四个格子为钻石。
+- **右键点击**骰子物品在你面前投掷一个旋转的骰子实体。约3秒后停止并显示投出的点数。
+- **4 / 5 / 6（高点）**：获得随机属性（攻击伤害 / 护甲 / 最大生命值），数值在 `[gainMin, gainMax]` 范围内（默认 `[1, 10]`）。
+- **1 / 2 / 3（低点）**：失去随机属性，数值在 `[lossMin, lossMax]` 范围内（默认 `[1, 5]`）。
+- **投出1点**：额外造成 `lightningDamage` 闪电伤害（默认10）并召唤闪电击中玩家。
+- 每个面（1–6）出现的概率相同。
+- 聊天消息显示投出的点数：1/2/3 为红色，4/5/6 为绿色。
 
-All of the above is configurable via `config/attribute_dice.json` (auto-created on first run).
+以上所有参数都可以通过 `config/attribute_dice.json` 配置（首次运行时自动创建）。
 
-## Build
+## 构建
 
-Requirements: **JDK 21** and internet access (Gradle will download Minecraft mappings).
+要求：**JDK 21** 和网络连接（Gradle 将下载 Minecraft 映射文件）。
 
 ```bat
 gradlew.bat build
 ```
 
-Output jar: `build/libs/attribute-dice-1.0.0.jar` — drop it into your Fabric `mods/` folder together with Fabric API.
+输出 jar：`build/libs/attribute-dice-1.0.0.jar` — 将其放入 Fabric 的 `mods/` 文件夹中，并与 Fabric API 一起使用。
 
-## Texture placement
+## 纹理放置
 
-The mod does NOT ship any texture by default — please drop your own PNGs into the
-following locations under `src/main/resources/assets/attribute_dice/textures/`:
+模组默认**不包含**任何纹理——请将您自己的 PNG 图片放入以下 `src/main/resources/assets/attribute_dice/textures/` 目录下：
 
-| Purpose        | Required path                                                  | Recommended size |
-|----------------|----------------------------------------------------------------|-------------------|
-| Item icon      | `item/attribute_dice.png`                                      | 16x16             |
-| Entity texture | `entity/dice.png` (one texture used on all 6 faces of the cube) | 16x16             |
+| 用途         | 路径                                                          | 推荐大小 |
+|-------------|---------------------------------------------------------------|----------|
+| 物品图标     | `item/attribute_dice.png`                                      | 16x16    |
+| 实体纹理     | `entity/dice.png`（一个纹理用于立方体的所有6个面）                | 16x16    |
 
-Directory tree example:
+目录结构示例：
 
 ```
 src/main/resources/assets/attribute_dice/
@@ -48,9 +47,9 @@ src/main/resources/assets/attribute_dice/
 │       └── attribute_dice.json
 └── textures/
     ├── item/
-    │   └── attribute_dice.png   <-- your item icon goes here
+    │   └── attribute_dice.png   <-- 你的物品图标放这里
     └── entity/
-        └── dice.png             <-- your cube face texture goes here
+        └── dice.png             <-- 你的立方体面纹理放这里
 ```
 
-After dropping the textures in, re-run `gradlew.bat build` to package them into the jar.
+放入纹理后，重新运行 `gradlew.bat build` 将其打包到 jar 中。
