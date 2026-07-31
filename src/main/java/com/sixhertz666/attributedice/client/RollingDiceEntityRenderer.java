@@ -15,14 +15,17 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 
 /**
- * Renders the rolling dice as a spinning cube. All six faces use the same
- * texture, applied as a full quad per face.
+ * Renders the rolling dice as a spinning cube with 6 different faces.
+ * The dice texture is 16×96 pixels, each face occupying 16×16 pixels
+ * vertically (faces 1-6 from top to bottom).
  *
- * <p>1.21.11 splits entity rendering into {@code extractRenderState} (gather
- * data from the entity on the render thread) and {@code submit} (emit draw
- * nodes to the {@link SubmitNodeCollector}). There is no longer a
- * {@code render} method or a {@code getTextureLocation} override; the texture
- * identifier is held as a field and passed to {@link RenderTypes#entitySolid}.
+ * Face layout (standard dice):
+ * - Top (+Y): face 1
+ * - Bottom (-Y): face 6
+ * - South (+Z): face 2
+ * - North (-Z): face 5
+ * - East (+X): face 3
+ * - West (-X): face 4
  */
 public class RollingDiceEntityRenderer extends EntityRenderer<RollingDiceEntity, RollingDiceEntityRenderer.DiceRenderState> {
 
@@ -30,6 +33,9 @@ public class RollingDiceEntityRenderer extends EntityRenderer<RollingDiceEntity,
 
     /** Half the cube's side length, in blocks. */
     private static final float HALF = 0.5F;
+
+    /** UV height for each face (1/6 of texture height). */
+    private static final float FACE_HEIGHT = 1.0F / 6.0F;
 
     public RollingDiceEntityRenderer(EntityRendererProvider.Context context) {
         super(context);
@@ -65,8 +71,16 @@ public class RollingDiceEntityRenderer extends EntityRenderer<RollingDiceEntity,
             poseStack.mulPose(Axis.YP.rotationDegrees(spin * 0.8F));
             poseStack.mulPose(Axis.ZP.rotationDegrees(spin * 0.5F));
         } else {
-            // Settle to a flat orientation showing the rolled face up.
-            poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+            // Settle so the face matching rollResult points up (+Y).
+            switch (state.rollResult) {
+                case 1 -> {} // face 1 already on top (+Y)
+                case 2 -> poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+                case 3 -> poseStack.mulPose(Axis.ZP.rotationDegrees(90.0F));
+                case 4 -> poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0F));
+                case 5 -> poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+                case 6 -> poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
+                default -> poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+            }
         }
 
         // Half-block cube
@@ -81,86 +95,116 @@ public class RollingDiceEntityRenderer extends EntityRenderer<RollingDiceEntity,
 
     /**
      * Emits 6 faces (4 vertices each, CCW when viewed from outside) covering
-     * a unit cube spanning [-HALF, HALF] on every axis. Each face uses the
-     * full texture.
+     * a unit cube spanning [-HALF, HALF] on every axis.
+     * Each face uses a different part of the texture (1/6 height each).
+     *
+     * Face mapping (standard dice):
+     * - Top (+Y): face 1 (0)
+     * - Bottom (-Y): face 6 (5)
+     * - South (+Z): face 2 (1)
+     * - North (-Z): face 5 (4)
+     * - East (+X): face 3 (2)
+     * - West (-X): face 4 (3)
      */
     private static void drawCube(PoseStack.Pose pose, VertexConsumer consumer, int packedLight) {
-        // South face (+Z), normal (0,0,1)
-        quad(pose, consumer, packedLight,
-                -HALF,  HALF, HALF, 0, 0,
-                 HALF,  HALF, HALF, 1, 0,
-                 HALF, -HALF, HALF, 1, 1,
-                -HALF, -HALF, HALF, 0, 1,
+        // South face (+Z), face index 1 (dice face 2)
+        // CCW from +Z: top-left → bottom-left → bottom-right → top-right
+        drawFace(pose, consumer, packedLight, 1,
+                -HALF,  HALF, HALF,   // top-left
+                -HALF, -HALF, HALF,   // bottom-left
+                 HALF, -HALF, HALF,   // bottom-right
+                 HALF,  HALF, HALF,   // top-right
                 0, 0, 1);
 
-        // North face (-Z), normal (0,0,-1)
-        quad(pose, consumer, packedLight,
-                 HALF,  HALF, -HALF, 0, 0,
-                -HALF,  HALF, -HALF, 1, 0,
-                -HALF, -HALF, -HALF, 1, 1,
-                 HALF, -HALF, -HALF, 0, 1,
+        // North face (-Z), face index 4 (dice face 5)
+        // CCW from -Z: top-left → bottom-left → bottom-right → top-right
+        drawFace(pose, consumer, packedLight, 4,
+                 HALF,  HALF, -HALF,   // top-left
+                 HALF, -HALF, -HALF,   // bottom-left
+                -HALF, -HALF, -HALF,   // bottom-right
+                -HALF,  HALF, -HALF,   // top-right
                 0, 0, -1);
 
-        // East face (+X), normal (1,0,0)
-        quad(pose, consumer, packedLight,
-                 HALF,  HALF,  HALF, 0, 0,
-                 HALF,  HALF, -HALF, 1, 0,
-                 HALF, -HALF, -HALF, 1, 1,
-                 HALF, -HALF,  HALF, 0, 1,
+        // East face (+X), face index 2 (dice face 3)
+        // CCW from +X: top-left → bottom-left → bottom-right → top-right
+        drawFace(pose, consumer, packedLight, 2,
+                 HALF,  HALF,  HALF,   // top-left
+                 HALF, -HALF,  HALF,   // bottom-left
+                 HALF, -HALF, -HALF,   // bottom-right
+                 HALF,  HALF, -HALF,   // top-right
                 1, 0, 0);
 
-        // West face (-X), normal (-1,0,0)
-        quad(pose, consumer, packedLight,
-                -HALF,  HALF, -HALF, 0, 0,
-                -HALF,  HALF,  HALF, 1, 0,
-                -HALF, -HALF,  HALF, 1, 1,
-                -HALF, -HALF, -HALF, 0, 1,
+        // West face (-X), face index 3 (dice face 4)
+        // CCW from -X: top-left → bottom-left → bottom-right → top-right
+        drawFace(pose, consumer, packedLight, 3,
+                -HALF,  HALF, -HALF,   // top-left
+                -HALF, -HALF, -HALF,   // bottom-left
+                -HALF, -HALF,  HALF,   // bottom-right
+                -HALF,  HALF,  HALF,   // top-right
                 -1, 0, 0);
 
-        // Top face (+Y), normal (0,1,0)
-        quad(pose, consumer, packedLight,
-                -HALF, HALF, -HALF, 0, 0,
-                 HALF, HALF, -HALF, 1, 0,
-                 HALF, HALF,  HALF, 1, 1,
-                -HALF, HALF,  HALF, 0, 1,
+        // Top face (+Y), face index 0 (dice face 1)
+        // CCW from +Y: top-left(back) → bottom-left(back) → bottom-right(front) → top-right(front)
+        drawFace(pose, consumer, packedLight, 0,
+                -HALF, HALF, -HALF,   // top-left (back-left when viewed from +Y)
+                -HALF, HALF,  HALF,   // bottom-left (front-left)
+                 HALF, HALF,  HALF,   // bottom-right (front-right)
+                 HALF, HALF, -HALF,   // top-right (back-right)
                 0, 1, 0);
 
-        // Bottom face (-Y), normal (0,-1,0)
-        quad(pose, consumer, packedLight,
-                -HALF, -HALF,  HALF, 0, 0,
-                 HALF, -HALF,  HALF, 1, 0,
-                 HALF, -HALF, -HALF, 1, 1,
-                -HALF, -HALF, -HALF, 0, 1,
+        // Bottom face (-Y), face index 5 (dice face 6)
+        // CCW from -Y: top-left(front) → bottom-left(front) → bottom-right(back) → top-right(back)
+        drawFace(pose, consumer, packedLight, 5,
+                -HALF, -HALF,  HALF,   // top-left (front-left when viewed from -Y)
+                -HALF, -HALF, -HALF,   // bottom-left (back-left)
+                 HALF, -HALF, -HALF,   // bottom-right (back-right)
+                 HALF, -HALF,  HALF,   // top-right (front-right)
                 0, -1, 0);
     }
 
-    private static void quad(PoseStack.Pose pose, VertexConsumer consumer, int packedLight,
-                              float x1, float y1, float z1, float u1, float v1,
-                              float x2, float y2, float z2, float u2, float v2,
-                              float x3, float y3, float z3, float u3, float v3,
-                              float x4, float y4, float z4, float u4, float v4,
-                              float nx, float ny, float nz) {
+    /**
+     * Draws a single face of the cube using a specific face texture region.
+     * Vertices must be in CCW order when viewed from outside the face.
+     *
+     * UV mapping (CCW):
+     * - Vertex 1 (top-left): (0, vMin)
+     * - Vertex 2 (bottom-left): (0, vMax)
+     * - Vertex 3 (bottom-right): (1, vMax)
+     * - Vertex 4 (top-right): (1, vMin)
+     *
+     * @param faceIndex 0-5, which 1/6 slice of the texture to use
+     */
+    private static void drawFace(PoseStack.Pose pose, VertexConsumer consumer, int packedLight,
+                                  int faceIndex,
+                                  float x1, float y1, float z1,
+                                  float x2, float y2, float z2,
+                                  float x3, float y3, float z3,
+                                  float x4, float y4, float z4,
+                                  float nx, float ny, float nz) {
+        float vMin = faceIndex * FACE_HEIGHT;
+        float vMax = (faceIndex + 1) * FACE_HEIGHT;
+
         consumer.addVertex(pose, x1, y1, z1)
                 .setColor(255, 255, 255, 255)
-                .setUv(u1, v1)
+                .setUv(0.0F, vMin)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(packedLight)
                 .setNormal(pose, nx, ny, nz);
         consumer.addVertex(pose, x2, y2, z2)
                 .setColor(255, 255, 255, 255)
-                .setUv(u2, v2)
+                .setUv(0.0F, vMax)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(packedLight)
                 .setNormal(pose, nx, ny, nz);
         consumer.addVertex(pose, x3, y3, z3)
                 .setColor(255, 255, 255, 255)
-                .setUv(u3, v3)
+                .setUv(1.0F, vMax)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(packedLight)
                 .setNormal(pose, nx, ny, nz);
         consumer.addVertex(pose, x4, y4, z4)
                 .setColor(255, 255, 255, 255)
-                .setUv(u4, v4)
+                .setUv(1.0F, vMin)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(packedLight)
                 .setNormal(pose, nx, ny, nz);

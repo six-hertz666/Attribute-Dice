@@ -1,4 +1,5 @@
 {
+  "itemGroup.attribute_dice.attribute_dice_tab": "Attribute Dice",
   "item.attribute_dice.attribute_dice": "Attribute Dice",
   "entity.attribute_dice.rolling_dice": "Rolling Dice",
   "attribute_dice.message.rolled": "You rolled a %s!",

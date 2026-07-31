@@ -1,4 +1,5 @@
 {
+  "itemGroup.attribute_dice.attribute_dice_tab": "属性骰子",
   "item.attribute_dice.attribute_dice": "属性骰子",
   "entity.attribute_dice.rolling_dice": "旋转骰子",
   "attribute_dice.message.rolled": "你掷出了 %s 点！",

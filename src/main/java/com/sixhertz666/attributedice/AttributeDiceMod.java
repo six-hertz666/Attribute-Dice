@@ -1,6 +1,7 @@
 package com.sixhertz666.attributedice;
 
 import com.sixhertz666.attributedice.entity.ModEntities;
+import com.sixhertz666.attributedice.item.ModCreativeModeTabs;
 import com.sixhertz666.attributedice.item.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.ChatFormatting;
@@ -40,6 +41,7 @@ public class AttributeDiceMod implements ModInitializer {
         LOGGER.info("Initializing Attribute Dice");
         CONFIG = AttributeDiceConfig.load();
         ModItems.register();
+        ModCreativeModeTabs.register();
         ModEntities.register();
     }
 
@@ -69,26 +71,51 @@ public class AttributeDiceMod implements ModInitializer {
             CONFIG = AttributeDiceConfig.load();
         }
 
-        if (roll >= 4) {
-            applyRandomAttributeChange(player, level.getRandom(),
-                    CONFIG.gainMin, CONFIG.gainMax, false);
-        } else {
-            applyRandomAttributeChange(player, level.getRandom(),
-                    CONFIG.lossMin, CONFIG.lossMax, true);
-        }
+        RandomSource random = level.getRandom();
 
-        if (roll == 1 && CONFIG.enableLightning) {
-            strikeWithLightning(level, player, CONFIG.lightningDamage);
+        switch (roll) {
+            case 6:
+                applyAttributeChange(player, random, CONFIG.roll6Gain, false);
+                break;
+            case 5:
+                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false);
+                break;
+            case 4:
+                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false);
+                break;
+            case 3:
+                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true);
+                break;
+            case 2:
+                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true);
+                break;
+            case 1:
+                applyAttributeChange(player, random, CONFIG.roll1Loss, true);
+                if (CONFIG.enableLightning) {
+                    strikeWithLightning(level, player, CONFIG.lightningDamage);
+                }
+                break;
         }
     }
 
     /**
-     * Picks one of the three tracked attributes at random and applies a
-     * transient modifier. Positive deltas add value, negative deltas remove
-     * value.
+     * Returns a random value in the inclusive range [{@code min}, {@code max}].
+     * Assumes {@code min <= max} (clamped in {@link AttributeDiceConfig#load()}).
      */
-    private static void applyRandomAttributeChange(Player player, RandomSource random,
-                                                    int min, int max, boolean negative) {
+    private static int randomInRange(RandomSource random, int min, int max) {
+        if (max <= min) {
+            return min;
+        }
+        return min + random.nextInt(max - min + 1);
+    }
+
+    /**
+     * Picks one of the three tracked attributes at random and applies a
+     * transient modifier. Positive amounts add value, negative amounts remove
+     * value (when negative flag is true the amount is negated).
+     */
+    private static void applyAttributeChange(Player player, RandomSource random,
+                                              int amount, boolean negative) {
         List<Holder<Attribute>> choices = List.of(
                 Attributes.ATTACK_DAMAGE,
                 Attributes.ARMOR,
@@ -96,8 +123,6 @@ public class AttributeDiceMod implements ModInitializer {
         );
 
         Holder<Attribute> chosen = choices.get(random.nextInt(choices.size()));
-        int range = Math.max(1, max - min + 1);
-        int amount = min + random.nextInt(range);
         double delta = negative ? -amount : amount;
 
         AttributeInstance instance = player.getAttribute(chosen);
@@ -106,8 +131,15 @@ public class AttributeDiceMod implements ModInitializer {
         }
 
         ResourceModifierKey key = ResourceModifierKey.forAttribute(chosen);
+        Identifier modifierId = AttributeDiceMod.id(key.path());
+        
+        // Remove existing modifier if present to prevent conflicts
+        if (instance.getModifier(modifierId) != null) {
+            instance.removeModifier(modifierId);
+        }
+        
         AttributeModifier modifier = new AttributeModifier(
-                AttributeDiceMod.id(key.path()),
+                modifierId,
                 delta,
                 AttributeModifier.Operation.ADD_VALUE
         );
