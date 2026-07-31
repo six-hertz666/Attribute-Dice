@@ -134,7 +134,7 @@ public class AttributeDiceMod implements ModInitializer {
         bolt.setPos(player.getX(), player.getY(), player.getZ());
         bolt.setVisualOnly(true);
         level.addFreshEntity(bolt);
-        player.hurt(level.damageSources().lightningBolt(), damage);
+        player.hurtServer(level, level.damageSources().lightningBolt(), damage);
         level.playSound(null, player.blockPosition(),
                 SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 1.0F, 1.0F);
     }
