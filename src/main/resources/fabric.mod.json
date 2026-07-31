@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute_dice",
+  "version": "${version}",
+  "name": "Attribute Dice",
+  "description": "Roll a magic dice to gain or lose attributes. Roll high to gain stats, roll low to lose stats, and beware rolling a 1!",
+  "authors": [
+    "sixhertz666"
+  ],
+  "contact": {
+    "homepage": "https://github.com/six-hertz666/Attribute-Dice",
+    "sources": "https://github.com/six-hertz666/Attribute-Dice",
+    "issues": "https://github.com/six-hertz666/Attribute-Dice/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/attribute_dice/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.sixhertz666.attributedice.AttributeDiceMod"
+    ],
+    "client": [
+      "com.sixhertz666.attributedice.client.AttributeDiceClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

@@ -1,0 +1,53 @@
+# gradle
+.gradle/
+build/
+out/
+classes/
+libs/
+
+# eclipse
+*.launch
+.metadata/
+.settings/
+.classpath
+.project
+bin/
+
+# idea
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+.vscode/
+
+# macos
+.DS_Store
+*.DS_Store
+
+# windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# linux
+*~
+
+# fabric
+run/
+logs/
+
+# java
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# misc
+*.log
+*.tmp
+*.bak
+*.swp
+*.orig

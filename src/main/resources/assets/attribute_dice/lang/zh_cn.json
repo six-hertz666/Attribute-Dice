@@ -1,0 +1,11 @@
+{
+  "item.attribute_dice.attribute_dice": "属性骰子",
+  "entity.attribute_dice.rolling_dice": "旋转骰子",
+  "attribute_dice.message.rolled": "你掷出了 %s 点！",
+  "attribute_dice.message.gain": "获得 +%s %s！",
+  "attribute_dice.message.loss": "损失 -%s %s！",
+  "attribute_dice.attr.attack_damage": "攻击伤害",
+  "attribute_dice.attr.armor": "护甲",
+  "attribute_dice.attr.max_health": "生命上限",
+  "attribute_dice.attr.generic": "属性"
+}
