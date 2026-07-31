@@ -8,16 +8,33 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The dice item. Right-clicking spawns a {@link RollingDiceEntity} in front of
  * the player that spins for a configurable duration before resolving.
+ *
+ * <p>When the player is sneaking (shift) while right-clicking and a
+ * {@link LivingEntity} is in their line of sight, the dice is placed above
+ * that entity's head and the roll is applied to it using the same rules
+ * that govern player-targeted rolls.
  */
 public class AttributeDiceItem extends Item {
+
+    /** Reach distance (in blocks) used when scanning for an entity target. */
+    private static final double ENTITY_REACH = 5.0;
+
+    /** Vertical offset above the target entity's bounding box top. */
+    private static final double SPAWN_OFFSET_ABOVE_TARGET = 1.5;
 
     public AttributeDiceItem(Properties properties) {
         super(properties);
@@ -34,16 +51,35 @@ public class AttributeDiceItem extends Item {
 
         ServerLevel serverLevel = (ServerLevel) level;
 
-        // Spawn the dice about 2 blocks in front of the player's eyes.
-        var lookVec = player.getLookAngle();
-        double spawnX = player.getEyePosition().x + lookVec.x * 2.0;
-        double spawnY = player.getEyePosition().y + lookVec.y * 2.0;
-        double spawnZ = player.getEyePosition().z + lookVec.z * 2.0;
-
         RollingDiceEntity dice = new RollingDiceEntity(ModEntities.ROLLING_DICE, serverLevel);
-        dice.setPos(spawnX, spawnY, spawnZ);
-        dice.setInitialRotation(player.getYRot(), 0.0F);
         dice.setOwner(player);
+
+        // Shift + right-click: try to target the living entity the player is
+        // currently looking at. If found, spawn the dice above its head and
+        // mark it as the roll target.
+        LivingEntity target = null;
+        if (player.isSecondaryUseActive()) {
+            target = findEntityUnderCrosshair(serverLevel, player);
+        }
+
+        if (target != null && target != player) {
+            AABB box = target.getBoundingBox();
+            double spawnX = box.getCenter().x;
+            double spawnY = box.maxY + SPAWN_OFFSET_ABOVE_TARGET;
+            double spawnZ = box.getCenter().z;
+            dice.setPos(spawnX, spawnY, spawnZ);
+            dice.setTarget(target);
+        } else {
+            // Default behaviour: spawn the dice about 2 blocks in front of the
+            // player's eyes.
+            var lookVec = player.getLookAngle();
+            double spawnX = player.getEyePosition().x + lookVec.x * 2.0;
+            double spawnY = player.getEyePosition().y + lookVec.y * 2.0;
+            double spawnZ = player.getEyePosition().z + lookVec.z * 2.0;
+            dice.setPos(spawnX, spawnY, spawnZ);
+        }
+
+        dice.setInitialRotation(player.getYRot(), 0.0F);
         serverLevel.addFreshEntity(dice);
 
         // Roll a fair 1-6 result and store it on the entity so the client
@@ -61,5 +97,38 @@ public class AttributeDiceItem extends Item {
 
         player.swing(hand);
         return InteractionResult.CONSUME;
+    }
+
+    /**
+     * Performs an entity ray-trace from the player's eyes along their look
+     * vector and returns the closest living entity hit (excluding the player
+     * themself). Returns {@code null} if nothing is in range.
+     */
+    private static LivingEntity findEntityUnderCrosshair(ServerLevel level, Player player) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        Vec3 endPos = eyePos.add(lookVec.scale(ENTITY_REACH));
+
+        AABB searchBox = new AABB(eyePos, endPos).inflate(1.0);
+        List<LivingEntity> candidates = level.getEntitiesOfClass(
+                LivingEntity.class, searchBox,
+                e -> e.isAlive() && e != player
+        );
+
+        LivingEntity closest = null;
+        double closestDist = ENTITY_REACH * ENTITY_REACH;
+        for (LivingEntity candidate : candidates) {
+            AABB entityBox = candidate.getBoundingBox()
+                    .inflate(candidate.getPickRadius());
+            Optional<Vec3> hit = entityBox.clip(eyePos, endPos);
+            if (hit.isPresent()) {
+                double dist = eyePos.distanceToSqr(hit.get());
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = candidate;
+                }
+            }
+        }
+        return closest;
     }
 }

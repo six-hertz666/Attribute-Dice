@@ -24,4 +24,4 @@
 gradlew.bat build
 ```
 
-输出 jar：`build/libs/attribute-dice-1.0.0.jar` — 将其放入 Fabric 的 `mods/` 文件夹中，并与 Fabric API 一起使用。
+输出 jar：`build/libs/attribute-dice-1.0.1.jar` — 将其放入 Fabric 的 `mods/` 文件夹中，并与 Fabric API 一起使用。

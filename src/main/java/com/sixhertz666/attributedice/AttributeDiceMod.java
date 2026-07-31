@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -58,14 +59,34 @@ public class AttributeDiceMod implements ModInitializer {
      * @param roll the dice result (1-6)
      */
     public static void applyDiceResult(ServerLevel level, Player player, int roll) {
+        applyDiceResult(level, player, player, roll);
+    }
+
+    /**
+     * Resolve a rolled dice value applied to a (possibly non-player) target.
+     * Feedback messages are sent to {@code user}; attribute modifications are
+     * applied to {@code target}. When {@code target} is a non-player entity,
+     * the chat messages include the entity's name.
+     *
+     * @param level the server level the dice was rolled in
+     * @param target the entity that receives the attribute change
+     * @param user the player that rolled the dice (receives chat feedback)
+     * @param roll the dice result (1-6)
+     */
+    public static void applyDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
         if (roll < 1 || roll > 6) {
             return;
         }
 
+        boolean targetingOther = target != user;
+
         // Tell the player the result. 1/2/3 -> red, 4/5/6 -> green.
         ChatFormatting color = roll <= 3 ? ChatFormatting.RED : ChatFormatting.GREEN;
-        Component message = Component.translatable("attribute_dice.message.rolled", roll).withStyle(color);
-        player.displayClientMessage(message, false);
+        Component message = targetingOther
+                ? Component.translatable("attribute_dice.message.rolled_entity", target.getDisplayName(), roll)
+                        .withStyle(color)
+                : Component.translatable("attribute_dice.message.rolled", roll).withStyle(color);
+        user.displayClientMessage(message, false);
 
         if (CONFIG == null) {
             CONFIG = AttributeDiceConfig.load();
@@ -75,24 +96,24 @@ public class AttributeDiceMod implements ModInitializer {
 
         switch (roll) {
             case 6:
-                applyAttributeChange(player, random, CONFIG.roll6Gain, false);
+                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther);
                 break;
             case 5:
-                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther);
                 break;
             case 4:
-                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther);
                 break;
             case 3:
-                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther);
                 break;
             case 2:
-                applyAttributeChange(player, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther);
                 break;
             case 1:
-                applyAttributeChange(player, random, CONFIG.roll1Loss, true);
+                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther);
                 if (CONFIG.enableLightning) {
-                    strikeWithLightning(level, player, CONFIG.lightningDamage);
+                    strikeWithLightning(level, target, CONFIG.lightningDamage);
                 }
                 break;
         }
@@ -113,9 +134,17 @@ public class AttributeDiceMod implements ModInitializer {
      * Picks one of the three tracked attributes at random and applies a
      * transient modifier. Positive amounts add value, negative amounts remove
      * value (when negative flag is true the amount is negated).
+     *
+     * @param target the entity whose attribute is modified
+     * @param random source of randomness for attribute selection
+     * @param amount magnitude of the change
+     * @param negative if true, the amount is subtracted instead of added
+     * @param user the player that rolled the dice (receives chat feedback)
+     * @param targetingOther if true, the feedback message includes the target's name
      */
-    private static void applyAttributeChange(Player player, RandomSource random,
-                                              int amount, boolean negative) {
+    private static void applyAttributeChange(LivingEntity target, RandomSource random,
+                                              int amount, boolean negative,
+                                              Player user, boolean targetingOther) {
         List<Holder<Attribute>> choices = List.of(
                 Attributes.ATTACK_DAMAGE,
                 Attributes.ARMOR,
@@ -125,19 +154,19 @@ public class AttributeDiceMod implements ModInitializer {
         Holder<Attribute> chosen = choices.get(random.nextInt(choices.size()));
         double delta = negative ? -amount : amount;
 
-        AttributeInstance instance = player.getAttribute(chosen);
+        AttributeInstance instance = target.getAttribute(chosen);
         if (instance == null) {
             return;
         }
 
         ResourceModifierKey key = ResourceModifierKey.forAttribute(chosen);
         Identifier modifierId = AttributeDiceMod.id(key.path());
-        
+
         // Remove existing modifier if present to prevent conflicts
         if (instance.getModifier(modifierId) != null) {
             instance.removeModifier(modifierId);
         }
-        
+
         AttributeModifier modifier = new AttributeModifier(
                 modifierId,
                 delta,
@@ -145,29 +174,39 @@ public class AttributeDiceMod implements ModInitializer {
         );
         instance.addTransientModifier(modifier);
 
-        // Heal up to the new max health if we just changed it, so the player
+        // Heal up to the new max health if we just changed it, so the target
         // sees an immediate benefit.
-        if (chosen == Attributes.MAX_HEALTH) {
-            if (delta > 0) {
-                player.heal((float) delta);
-            }
+        if (chosen == Attributes.MAX_HEALTH && delta > 0) {
+            target.heal((float) delta);
         }
 
-        Component feedback = Component.translatable(
-                negative ? "attribute_dice.message.loss" : "attribute_dice.message.gain",
-                Math.abs(amount),
-                Component.translatable(key.translationKey())
-        ).withStyle(negative ? ChatFormatting.RED : ChatFormatting.GREEN);
-        player.displayClientMessage(feedback, false);
+        Component attrName = Component.translatable(key.translationKey());
+        ChatFormatting feedbackColor = negative ? ChatFormatting.RED : ChatFormatting.GREEN;
+        Component feedback;
+        if (targetingOther) {
+            feedback = Component.translatable(
+                    negative ? "attribute_dice.message.loss_entity" : "attribute_dice.message.gain_entity",
+                    target.getDisplayName(),
+                    Math.abs(amount),
+                    attrName
+            ).withStyle(feedbackColor);
+        } else {
+            feedback = Component.translatable(
+                    negative ? "attribute_dice.message.loss" : "attribute_dice.message.gain",
+                    Math.abs(amount),
+                    attrName
+            ).withStyle(feedbackColor);
+        }
+        user.displayClientMessage(feedback, false);
     }
 
-    private static void strikeWithLightning(ServerLevel level, Player player, float damage) {
+    private static void strikeWithLightning(ServerLevel level, LivingEntity target, float damage) {
         LightningBolt bolt = new LightningBolt(EntityType.LIGHTNING_BOLT, level);
-        bolt.setPos(player.getX(), player.getY(), player.getZ());
+        bolt.setPos(target.getX(), target.getY(), target.getZ());
         bolt.setVisualOnly(true);
         level.addFreshEntity(bolt);
-        player.hurtServer(level, level.damageSources().lightningBolt(), damage);
-        level.playSound(null, player.blockPosition(),
+        target.hurtServer(level, level.damageSources().lightningBolt(), damage);
+        level.playSound(null, target.blockPosition(),
                 SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 1.0F, 1.0F);
     }
 
