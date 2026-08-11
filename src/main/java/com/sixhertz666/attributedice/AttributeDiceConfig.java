@@ -60,6 +60,37 @@ public class AttributeDiceConfig {
     /** How long (in ticks) the dice spins before resolving. 20 ticks = 1 second. */
     public int rollDurationTicks = 60;
 
+    // ===== 霉运骰子（Badluck Dice）配置：所有结果均为减少 =====
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 6. Range [9, 10]. */
+    public int badluck6LossMin = 9;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 6. */
+    public int badluck6LossMax = 10;
+
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 5. Range [7, 9]. */
+    public int badluck5LossMin = 7;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 5. */
+    public int badluck5LossMax = 9;
+
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 4. Range [6, 7]. */
+    public int badluck4LossMin = 6;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 4. */
+    public int badluck4LossMax = 7;
+
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 3. Range [4, 6]. */
+    public int badluck3LossMin = 4;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 3. */
+    public int badluck3LossMax = 6;
+
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 2. Range [3, 4]. */
+    public int badluck2LossMin = 3;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 2. */
+    public int badluck2LossMax = 4;
+
+    /** Minimum (inclusive) amount lost when a badluck dice rolls 1. Range [1, 3]. */
+    public int badluck1LossMin = 1;
+    /** Maximum (inclusive) amount lost when a badluck dice rolls 1. */
+    public int badluck1LossMax = 3;
+
     public static AttributeDiceConfig load() {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         Path configFile = configDir.resolve("attribute_dice.json");
@@ -93,6 +124,20 @@ public class AttributeDiceConfig {
         config.roll2LossMax = Math.max(config.roll2LossMin, config.roll2LossMax);
         config.rollDurationTicks = Math.max(1, config.rollDurationTicks);
         config.lightningDamage = Math.max(0.0F, config.lightningDamage);
+
+        // 霉运骰子范围 clamp
+        config.badluck6LossMin = Math.max(0, config.badluck6LossMin);
+        config.badluck6LossMax = Math.max(config.badluck6LossMin, config.badluck6LossMax);
+        config.badluck5LossMin = Math.max(0, config.badluck5LossMin);
+        config.badluck5LossMax = Math.max(config.badluck5LossMin, config.badluck5LossMax);
+        config.badluck4LossMin = Math.max(0, config.badluck4LossMin);
+        config.badluck4LossMax = Math.max(config.badluck4LossMin, config.badluck4LossMax);
+        config.badluck3LossMin = Math.max(0, config.badluck3LossMin);
+        config.badluck3LossMax = Math.max(config.badluck3LossMin, config.badluck3LossMax);
+        config.badluck2LossMin = Math.max(0, config.badluck2LossMin);
+        config.badluck2LossMax = Math.max(config.badluck2LossMin, config.badluck2LossMax);
+        config.badluck1LossMin = Math.max(0, config.badluck1LossMin);
+        config.badluck1LossMax = Math.max(config.badluck1LossMin, config.badluck1LossMax);
 
         try {
             Files.createDirectories(configDir);

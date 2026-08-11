@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "attribute_dice:item/fortune_dice"
+  }
+}

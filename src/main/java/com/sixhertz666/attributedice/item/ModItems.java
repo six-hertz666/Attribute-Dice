@@ -20,6 +20,18 @@ public class ModItems {
             new Item.Properties().stacksTo(16)
     );
 
+    public static final Item BADLUCK_DICE = register(
+            "badluck_dice",
+            BadluckDiceItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
+    public static final Item FORTUNE_DICE = register(
+            "fortune_dice",
+            FortuneDiceItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
     public static <T extends Item> T register(String name, Function<Item.Properties, T> itemFactory, Item.Properties settings) {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, AttributeDiceMod.id(name));
         T item = itemFactory.apply(settings.setId(itemKey));

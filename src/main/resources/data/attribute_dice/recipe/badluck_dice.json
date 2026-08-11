@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " P ",
+    "PBP",
+    " P "
+  ],
+  "key": {
+    "B": "attribute_dice:attribute_dice",
+    "P": "minecraft:ominous_bottle"
+  },
+  "result": {
+    "id": "attribute_dice:badluck_dice",
+    "count": 1
+  }
+}

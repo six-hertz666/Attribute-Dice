@@ -39,6 +39,23 @@ public class RollingDiceEntity extends Entity {
             SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
 
     /**
+     * Synced flag indicating this is a badluck dice. When true, the dice
+     * resolves via {@link AttributeDiceMod#applyBadluckDiceResult} (all outcomes
+     * are losses, no lightning on a 1). When false (default), it behaves as a
+     * regular attribute dice.
+     */
+    private static final EntityDataAccessor<Boolean> BADLUCK =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
+
+    /**
+     * Synced flag indicating this is a fortune dice. When true, the dice
+     * resolves via {@link AttributeDiceMod#applyFortuneDiceResult} (only rolls
+     * 4-6, gives structure loot plus attribute gain).
+     */
+    private static final EntityDataAccessor<Boolean> FORTUNE =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
+
+    /**
      * Vertical offset above the target entity's bounding box top. Kept in
      * sync with {@code AttributeDiceItem.SPAWN_OFFSET_ABOVE_TARGET} so the
      * dice stays at the same height it was spawned at while following the
@@ -71,6 +88,8 @@ public class RollingDiceEntity extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(ROLL_RESULT, 1);
         builder.define(STOPPED, false);
+        builder.define(BADLUCK, false);
+        builder.define(FORTUNE, false);
     }
 
     @Override
@@ -103,7 +122,13 @@ public class RollingDiceEntity extends Entity {
                 if (owner != null) {
                     LivingEntity target = resolveTarget(serverLevel, owner);
                     int roll = entityData.get(ROLL_RESULT);
-                    AttributeDiceMod.applyDiceResult(serverLevel, target, owner, roll);
+                    if (entityData.get(FORTUNE)) {
+                        AttributeDiceMod.applyFortuneDiceResult(serverLevel, target, owner, roll);
+                    } else if (entityData.get(BADLUCK)) {
+                        AttributeDiceMod.applyBadluckDiceResult(serverLevel, target, owner, roll);
+                    } else {
+                        AttributeDiceMod.applyDiceResult(serverLevel, target, owner, roll);
+                    }
                 }
                 // Schedule discard a few ticks later so the player can briefly
                 // see the stopped dice.
@@ -128,6 +153,32 @@ public class RollingDiceEntity extends Entity {
 
     public boolean isStopped() {
         return entityData.get(STOPPED);
+    }
+
+    /**
+     * Marks this dice as a badluck dice. Must be called before the dice is
+     * added to the world so the resolution logic in {@link #tick()} picks the
+     * correct branch.
+     */
+    public void setBadluck(boolean badluck) {
+        entityData.set(BADLUCK, badluck);
+    }
+
+    public boolean isBadluck() {
+        return entityData.get(BADLUCK);
+    }
+
+    /**
+     * Marks this dice as a fortune dice. Must be called before the dice is
+     * added to the world so the resolution logic in {@link #tick()} picks the
+     * correct branch.
+     */
+    public void setFortune(boolean fortune) {
+        entityData.set(FORTUNE, fortune);
+    }
+
+    public boolean isFortune() {
+        return entityData.get(FORTUNE);
     }
 
     public void setOwner(Player player) {
@@ -192,6 +243,8 @@ public class RollingDiceEntity extends Entity {
         ticksRemaining = input.getIntOr("TicksRemaining", 60);
         entityData.set(ROLL_RESULT, input.getIntOr("RollResult", 1));
         entityData.set(STOPPED, input.getBooleanOr("Stopped", false));
+        entityData.set(BADLUCK, input.getBooleanOr("Badluck", false));
+        entityData.set(FORTUNE, input.getBooleanOr("Fortune", false));
     }
 
     @Override
@@ -205,6 +258,8 @@ public class RollingDiceEntity extends Entity {
         output.putInt("TicksRemaining", ticksRemaining);
         output.putInt("RollResult", entityData.get(ROLL_RESULT));
         output.putBoolean("Stopped", entityData.get(STOPPED));
+        output.putBoolean("Badluck", entityData.get(BADLUCK));
+        output.putBoolean("Fortune", entityData.get(FORTUNE));
     }
 
     @Override

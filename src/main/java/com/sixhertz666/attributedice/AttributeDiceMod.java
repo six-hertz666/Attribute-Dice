@@ -8,6 +8,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -20,10 +22,16 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Main entrypoint for the Attribute Dice mod. Handles registration of content
@@ -96,27 +104,190 @@ public class AttributeDiceMod implements ModInitializer {
 
         switch (roll) {
             case 6:
-                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther);
+                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false);
                 break;
             case 5:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false);
                 break;
             case 4:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther, false);
                 break;
             case 3:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther, false);
                 break;
             case 2:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther, false);
                 break;
             case 1:
-                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther);
+                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther, false);
                 if (CONFIG.enableLightning) {
                     strikeWithLightning(level, target, CONFIG.lightningDamage);
                 }
                 break;
         }
+    }
+
+    /**
+     * Resolve a rolled badluck dice value applied to a target entity. All
+     * outcomes are losses (negative attribute changes). Rolling a 1 does NOT
+     * trigger lightning (unlike the regular dice). The result is always
+     * announced in red.
+     *
+     * @param level the server level the dice was rolled in
+     * @param target the entity that receives the attribute change
+     * @param user the player that rolled the dice (receives chat feedback)
+     * @param roll the dice result (1-6)
+     */
+    public static void applyBadluckDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        if (roll < 1 || roll > 6) {
+            return;
+        }
+
+        boolean targetingOther = target != user;
+
+        // 霉运骰子：所有结果都是减少，统一红色提示。
+        ChatFormatting color = ChatFormatting.RED;
+        Component message = targetingOther
+                ? Component.translatable("attribute_dice.message.rolled_entity", target.getDisplayName(), roll)
+                        .withStyle(color)
+                : Component.translatable("attribute_dice.message.rolled", roll).withStyle(color);
+        user.displayClientMessage(message, false);
+
+        if (CONFIG == null) {
+            CONFIG = AttributeDiceConfig.load();
+        }
+
+        RandomSource random = level.getRandom();
+
+        // 全部为减少效果（negative=true）；1点不触发闪电。
+        // 使用 permanent=true：每次生成唯一的修改器 ID 并永久保存，
+        // 这样减少效果会累积，不会因为替换旧修改器而导致属性值反弹。
+        switch (roll) {
+            case 6:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck6LossMin, CONFIG.badluck6LossMax), true, user, targetingOther, true);
+                break;
+            case 5:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck5LossMin, CONFIG.badluck5LossMax), true, user, targetingOther, true);
+                break;
+            case 4:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck4LossMin, CONFIG.badluck4LossMax), true, user, targetingOther, true);
+                break;
+            case 3:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck3LossMin, CONFIG.badluck3LossMax), true, user, targetingOther, true);
+                break;
+            case 2:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck2LossMin, CONFIG.badluck2LossMax), true, user, targetingOther, true);
+                break;
+            case 1:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck1LossMin, CONFIG.badluck1LossMax), true, user, targetingOther, true);
+                // 霉运骰子 1 点不触发闪电。
+                break;
+        }
+    }
+
+    /**
+     * Resolve a rolled fortune dice value. Fortune dice can only roll 4-6,
+     * and all outcomes are positive (attribute gains). In addition:
+     * <ul>
+     *   <li>Rolling a 4 grants village toolsmith chest loot</li>
+     *   <li>Rolling a 5 grants desert pyramid chest loot</li>
+     *   <li>Rolling a 6 grants bastion remnant treasure chest loot</li>
+     * </ul>
+     * The result is always announced in gold.
+     *
+     * @param level the server level the dice was rolled in
+     * @param target the entity that receives the attribute change (should be the user)
+     * @param user the player that rolled the dice (receives chat feedback and loot)
+     * @param roll the dice result (4-6)
+     */
+    public static void applyFortuneDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        if (roll < 4 || roll > 6) {
+            return;
+        }
+
+        // 财富骰子：所有结果都是增加，金色提示
+        ChatFormatting color = ChatFormatting.GOLD;
+        Component message = Component.translatable("attribute_dice.message.fortune_rolled", roll)
+                .withStyle(color);
+        user.displayClientMessage(message, false);
+
+        if (CONFIG == null) {
+            CONFIG = AttributeDiceConfig.load();
+        }
+
+        RandomSource random = level.getRandom();
+
+        // 财富骰子所有结果都为增加效果（negative=false）
+        // 使用与普通骰子相同的临时修改器（permanent=false）
+        switch (roll) {
+            case 6:
+                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, false, false);
+                grantLoot(level, user, "minecraft:chests/bastion/treasure");
+                break;
+            case 5:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, false, false);
+                grantLoot(level, user, "minecraft:chests/desert_pyramid");
+                break;
+            case 4:
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, false, false);
+                grantLoot(level, user, "minecraft:chests/village/village_toolsmith");
+                break;
+        }
+    }
+
+    /**
+     * Generates items from a loot table and gives them to the player. Items
+     * that don't fit in the player's inventory are dropped at the player's
+     * feet.
+     *
+     * @param level the server level
+     * @param player the player to receive the items
+     * @param lootTableId the loot table resource location (e.g. "minecraft:chests/desert_pyramid")
+     */
+    private static void grantLoot(ServerLevel level, Player player, String lootTableId) {
+        Identifier id = Identifier.tryParse(lootTableId);
+        if (id == null) {
+            return;
+        }
+        ResourceKey<LootTable> lootTableKey = ResourceKey.create(Registries.LOOT_TABLE, id);
+        LootTable lootTable = level.getServer().reloadableRegistries().getLootTable(lootTableKey);
+        if (lootTable == null || lootTable == LootTable.EMPTY) {
+            return;
+        }
+
+        LootParams params = new LootParams.Builder(level)
+                .withParameter(LootContextParams.THIS_ENTITY, player)
+                .withParameter(LootContextParams.ORIGIN, player.position())
+                .withLuck(player.getLuck())
+                .create(LootContextParamSets.CHEST);
+
+        List<ItemStack> loot = lootTable.getRandomItems(params);
+        for (ItemStack stack : loot) {
+            boolean added = player.getInventory().add(stack);
+            if (!added) {
+                // Inventory full: drop at player's feet
+                player.drop(stack, false);
+            }
+        }
+
+        // Send loot notification
+        Component lootMsg = Component.translatable("attribute_dice.message.loot_received",
+                Component.translatable("attribute_dice.loot." + lootTableNameFromId(lootTableId))
+        ).withStyle(ChatFormatting.GOLD);
+        player.displayClientMessage(lootMsg, false);
+    }
+
+    /**
+     * Extracts a short, stable name from a loot table ID for use in the
+     * translation key. e.g. "minecraft:chests/village/village_toolsmith"
+     * becomes "village_toolsmith".
+     */
+    private static String lootTableNameFromId(String lootTableId) {
+        int lastSlash = lootTableId.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < lootTableId.length() - 1) {
+            return lootTableId.substring(lastSlash + 1);
+        }
+        return "generic";
     }
 
     /**
@@ -132,7 +303,7 @@ public class AttributeDiceMod implements ModInitializer {
 
     /**
      * Picks one of the three tracked attributes at random and applies a
-     * transient modifier. Positive amounts add value, negative amounts remove
+     * modifier. Positive amounts add value, negative amounts remove
      * value (when negative flag is true the amount is negated).
      *
      * @param target the entity whose attribute is modified
@@ -141,10 +312,14 @@ public class AttributeDiceMod implements ModInitializer {
      * @param negative if true, the amount is subtracted instead of added
      * @param user the player that rolled the dice (receives chat feedback)
      * @param targetingOther if true, the feedback message includes the target's name
+     * @param permanent if true, uses a unique modifier id and a permanent
+     *                  modifier so that effects accumulate across multiple
+     *                  rolls instead of replacing the previous modifier
      */
     private static void applyAttributeChange(LivingEntity target, RandomSource random,
                                               int amount, boolean negative,
-                                              Player user, boolean targetingOther) {
+                                              Player user, boolean targetingOther,
+                                              boolean permanent) {
         List<Holder<Attribute>> choices = List.of(
                 Attributes.ATTACK_DAMAGE,
                 Attributes.ARMOR,
@@ -160,11 +335,18 @@ public class AttributeDiceMod implements ModInitializer {
         }
 
         ResourceModifierKey key = ResourceModifierKey.forAttribute(chosen);
-        Identifier modifierId = AttributeDiceMod.id(key.path());
-
-        // Remove existing modifier if present to prevent conflicts
-        if (instance.getModifier(modifierId) != null) {
-            instance.removeModifier(modifierId);
+        Identifier modifierId;
+        if (permanent) {
+            // 每次生成唯一的修改器 ID，使减少效果累积而不会替换旧修改器。
+            // 修复了"有时增加有时减少"的问题：之前使用固定 ID 会先移除
+            // 旧修改器再添加新的，当新减少量小于旧减少量时属性值会反弹。
+            modifierId = AttributeDiceMod.id(key.path() + "_" + UUID.randomUUID());
+        } else {
+            // 固定 ID，替换旧修改器（普通骰子的原行为）。
+            modifierId = AttributeDiceMod.id(key.path());
+            if (instance.getModifier(modifierId) != null) {
+                instance.removeModifier(modifierId);
+            }
         }
 
         AttributeModifier modifier = new AttributeModifier(
@@ -172,7 +354,11 @@ public class AttributeDiceMod implements ModInitializer {
                 delta,
                 AttributeModifier.Operation.ADD_VALUE
         );
-        instance.addTransientModifier(modifier);
+        if (permanent) {
+            instance.addPermanentModifier(modifier);
+        } else {
+            instance.addTransientModifier(modifier);
+        }
 
         // Heal up to the new max health if we just changed it, so the target
         // sees an immediate benefit.

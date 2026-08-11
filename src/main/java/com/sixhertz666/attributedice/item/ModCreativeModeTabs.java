@@ -29,6 +29,8 @@ public class ModCreativeModeTabs {
                         .icon(() -> new ItemStack(ModItems.ATTRIBUTE_DICE))
                         .displayItems((parameters, output) -> {
                             output.accept(ModItems.ATTRIBUTE_DICE);
+                            output.accept(ModItems.BADLUCK_DICE);
+                            output.accept(ModItems.FORTUNE_DICE);
                         })
                         .build()
         );
