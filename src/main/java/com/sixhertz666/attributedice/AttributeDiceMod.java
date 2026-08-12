@@ -52,6 +52,7 @@ public class AttributeDiceMod implements ModInitializer {
         ModItems.register();
         ModCreativeModeTabs.register();
         ModEntities.register();
+        BossDropHandler.register();
     }
 
     public static Identifier id(String path) {
