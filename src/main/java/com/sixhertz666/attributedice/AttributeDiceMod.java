@@ -82,6 +82,26 @@ public class AttributeDiceMod implements ModInitializer {
      * @param roll the dice result (1-6)
      */
     public static void applyDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        applyDiceResult(level, target, user, roll, null);
+    }
+
+    /**
+     * Resolve a rolled dice value applied to a (possibly non-player) target,
+     * optionally forcing a specific attribute instead of randomly picking one.
+     *
+     * <p>When {@code fixedAttribute} is non-null (used by the damage/armor/health
+     * dice variants), every outcome modifies that single attribute. When null,
+     * the attribute is chosen at random from attack damage / armor / max health
+     * (regular dice behavior).
+     *
+     * @param level the server level the dice was rolled in
+     * @param target the entity that receives the attribute change
+     * @param user the player that rolled the dice (receives chat feedback)
+     * @param roll the dice result (1-6)
+     * @param fixedAttribute the attribute to modify, or null for random selection
+     */
+    public static void applyDiceResult(ServerLevel level, LivingEntity target, Player user, int roll,
+                                        Holder<Attribute> fixedAttribute) {
         if (roll < 1 || roll > 6) {
             return;
         }
@@ -102,32 +122,75 @@ public class AttributeDiceMod implements ModInitializer {
 
         RandomSource random = level.getRandom();
 
-        // 普通骰子使用 "dice_" 前缀修改器ID
-        String modifierPrefix = "dice_";
+        // 专用骰子（伤害/护甲/生命）使用各自独立前缀，避免与普通骰子修改器冲突。
+        // 普通骰子仍使用 "dice_" 前缀。
+        String modifierPrefix = fixedAttribute == null ? "dice_" : prefixForAttribute(fixedAttribute);
 
         switch (roll) {
             case 6:
-                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 break;
             case 5:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 break;
             case 4:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 break;
             case 3:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 break;
             case 2:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 break;
             case 1:
-                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther, false, modifierPrefix);
+                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther, false, modifierPrefix, fixedAttribute);
                 if (CONFIG.enableLightning) {
                     strikeWithLightning(level, target, CONFIG.lightningDamage);
                 }
                 break;
         }
+    }
+
+    /**
+     * Resolve a damage dice roll. Behaves identically to the regular dice but
+     * always modifies {@link Attributes#ATTACK_DAMAGE}.
+     */
+    public static void applyDamageDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        applyDiceResult(level, target, user, roll, Attributes.ATTACK_DAMAGE);
+    }
+
+    /**
+     * Resolve an armor dice roll. Behaves identically to the regular dice but
+     * always modifies {@link Attributes#ARMOR}.
+     */
+    public static void applyArmorDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        applyDiceResult(level, target, user, roll, Attributes.ARMOR);
+    }
+
+    /**
+     * Resolve a health dice roll. Behaves identically to the regular dice but
+     * always modifies {@link Attributes#MAX_HEALTH}.
+     */
+    public static void applyHealthDiceResult(ServerLevel level, LivingEntity target, Player user, int roll) {
+        applyDiceResult(level, target, user, roll, Attributes.MAX_HEALTH);
+    }
+
+    /**
+     * Returns the modifier-id prefix for a fixed-attribute dice variant.
+     * Each variant gets its own prefix so its transient modifiers don't
+     * overwrite (or get overwritten by) those of other dice types.
+     */
+    private static String prefixForAttribute(Holder<Attribute> attribute) {
+        if (attribute == Attributes.ATTACK_DAMAGE) {
+            return "damage_dice_";
+        }
+        if (attribute == Attributes.ARMOR) {
+            return "armor_dice_";
+        }
+        if (attribute == Attributes.MAX_HEALTH) {
+            return "health_dice_";
+        }
+        return "dice_";
     }
 
     /**
@@ -336,13 +399,35 @@ public class AttributeDiceMod implements ModInitializer {
                                               int amount, boolean negative,
                                               Player user, boolean targetingOther,
                                               boolean permanent, String modifierPrefix) {
-        List<Holder<Attribute>> choices = List.of(
-                Attributes.ATTACK_DAMAGE,
-                Attributes.ARMOR,
-                Attributes.MAX_HEALTH
-        );
+        applyAttributeChange(target, random, amount, negative, user, targetingOther, permanent, modifierPrefix, null);
+    }
 
-        Holder<Attribute> chosen = choices.get(random.nextInt(choices.size()));
+    /**
+     * Applies an attribute modifier, either to a random attribute (when
+     * {@code chosenAttribute} is null) or to a fixed attribute (used by the
+     * damage/armor/health dice variants).
+     *
+     * @param chosenAttribute the attribute to modify, or null to pick randomly
+     *                         from attack damage / armor / max health
+     * @see #applyAttributeChange(LivingEntity, RandomSource, int, boolean,
+     *      Player, boolean, boolean, String)
+     */
+    private static void applyAttributeChange(LivingEntity target, RandomSource random,
+                                              int amount, boolean negative,
+                                              Player user, boolean targetingOther,
+                                              boolean permanent, String modifierPrefix,
+                                              Holder<Attribute> chosenAttribute) {
+        Holder<Attribute> chosen;
+        if (chosenAttribute != null) {
+            chosen = chosenAttribute;
+        } else {
+            List<Holder<Attribute>> choices = List.of(
+                    Attributes.ATTACK_DAMAGE,
+                    Attributes.ARMOR,
+                    Attributes.MAX_HEALTH
+            );
+            chosen = choices.get(random.nextInt(choices.size()));
+        }
         double delta = negative ? -amount : amount;
 
         AttributeInstance instance = target.getAttribute(chosen);

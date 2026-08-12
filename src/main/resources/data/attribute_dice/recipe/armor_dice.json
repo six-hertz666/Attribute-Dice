@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CCC",
+    "CDC",
+    "CCC"
+  ],
+  "key": {
+    "D": "attribute_dice:attribute_dice",
+    "C": "minecraft:copper_chestplate"
+  },
+  "result": {
+    "id": "attribute_dice:armor_dice",
+    "count": 1
+  }
+}

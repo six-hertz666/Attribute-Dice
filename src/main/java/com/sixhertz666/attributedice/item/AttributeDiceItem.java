@@ -81,6 +81,9 @@ public class AttributeDiceItem extends Item {
         }
 
         dice.setInitialRotation(player.getYRot(), 0.0F);
+        // 让子类（伤害/护甲/生命骰子）有机会在实体加入世界前
+        // 设置对应的变体标志。基类默认不做任何操作。
+        configureDice(dice);
         serverLevel.addFreshEntity(dice);
 
         // Roll a fair 1-6 result and store it on the entity so the client
@@ -131,5 +134,20 @@ public class AttributeDiceItem extends Item {
             }
         }
         return closest;
+    }
+
+    /**
+     * Hook invoked just before the dice entity is added to the world.
+     * Subclasses (damage/armor/health dice) override this to mark the entity
+     * with the appropriate variant flag so the resolution logic in
+     * {@link RollingDiceEntity#tick()} dispatches to the correct apply method.
+     *
+     * <p>The base implementation is a no-op, preserving regular dice behavior.
+     *
+     * @param dice the dice entity about to be spawned (already positioned and
+     *             targeted; roll result not yet set)
+     */
+    protected void configureDice(RollingDiceEntity dice) {
+        // no-op: regular dice has no variant flag
     }
 }

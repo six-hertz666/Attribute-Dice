@@ -31,6 +31,9 @@ public class ModCreativeModeTabs {
                             output.accept(ModItems.ATTRIBUTE_DICE);
                             output.accept(ModItems.BADLUCK_DICE);
                             output.accept(ModItems.FORTUNE_DICE);
+                            output.accept(ModItems.DAMAGE_DICE);
+                            output.accept(ModItems.ARMOR_DICE);
+                            output.accept(ModItems.HEALTH_DICE);
                         })
                         .build()
         );

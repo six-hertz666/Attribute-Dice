@@ -32,6 +32,24 @@ public class ModItems {
             new Item.Properties().stacksTo(16)
     );
 
+    public static final Item DAMAGE_DICE = register(
+            "damage_dice",
+            DamageDiceItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
+    public static final Item ARMOR_DICE = register(
+            "armor_dice",
+            ArmorDiceItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
+    public static final Item HEALTH_DICE = register(
+            "health_dice",
+            HealthDiceItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
     public static <T extends Item> T register(String name, Function<Item.Properties, T> itemFactory, Item.Properties settings) {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, AttributeDiceMod.id(name));
         T item = itemFactory.apply(settings.setId(itemKey));

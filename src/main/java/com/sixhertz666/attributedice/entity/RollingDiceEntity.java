@@ -57,6 +57,30 @@ public class RollingDiceEntity extends Entity {
             SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
 
     /**
+     * Synced flag indicating this is a damage dice. When true, the dice
+     * resolves via {@link AttributeDiceMod#applyDamageDiceResult} and always
+     * modifies attack damage (otherwise behaves like the regular dice).
+     */
+    private static final EntityDataAccessor<Boolean> DAMAGE_DICE =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
+
+    /**
+     * Synced flag indicating this is an armor dice. When true, the dice
+     * resolves via {@link AttributeDiceMod#applyArmorDiceResult} and always
+     * modifies armor (otherwise behaves like the regular dice).
+     */
+    private static final EntityDataAccessor<Boolean> ARMOR_DICE =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
+
+    /**
+     * Synced flag indicating this is a health dice. When true, the dice
+     * resolves via {@link AttributeDiceMod#applyHealthDiceResult} and always
+     * modifies max health (otherwise behaves like the regular dice).
+     */
+    private static final EntityDataAccessor<Boolean> HEALTH_DICE =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
+
+    /**
      * 同步到客户端的目标实体 UUID（字符串形式）。
      *
      * <p>关键修复：之前 targetUuid 只是一个普通字段，没有同步到客户端，
@@ -106,6 +130,9 @@ public class RollingDiceEntity extends Entity {
         builder.define(STOPPED, false);
         builder.define(BADLUCK, false);
         builder.define(FORTUNE, false);
+        builder.define(DAMAGE_DICE, false);
+        builder.define(ARMOR_DICE, false);
+        builder.define(HEALTH_DICE, false);
         builder.define(TARGET_UUID, "");
     }
 
@@ -171,6 +198,12 @@ public class RollingDiceEntity extends Entity {
                         AttributeDiceMod.applyFortuneDiceResult(serverLevel, target, owner, roll);
                     } else if (entityData.get(BADLUCK)) {
                         AttributeDiceMod.applyBadluckDiceResult(serverLevel, target, owner, roll);
+                    } else if (entityData.get(DAMAGE_DICE)) {
+                        AttributeDiceMod.applyDamageDiceResult(serverLevel, target, owner, roll);
+                    } else if (entityData.get(ARMOR_DICE)) {
+                        AttributeDiceMod.applyArmorDiceResult(serverLevel, target, owner, roll);
+                    } else if (entityData.get(HEALTH_DICE)) {
+                        AttributeDiceMod.applyHealthDiceResult(serverLevel, target, owner, roll);
                     } else {
                         AttributeDiceMod.applyDiceResult(serverLevel, target, owner, roll);
                     }
@@ -224,6 +257,39 @@ public class RollingDiceEntity extends Entity {
 
     public boolean isFortune() {
         return entityData.get(FORTUNE);
+    }
+
+    /**
+     * Marks this dice as a damage dice (only modifies attack damage).
+     */
+    public void setDamageDice(boolean damage) {
+        entityData.set(DAMAGE_DICE, damage);
+    }
+
+    public boolean isDamageDice() {
+        return entityData.get(DAMAGE_DICE);
+    }
+
+    /**
+     * Marks this dice as an armor dice (only modifies armor).
+     */
+    public void setArmorDice(boolean armor) {
+        entityData.set(ARMOR_DICE, armor);
+    }
+
+    public boolean isArmorDice() {
+        return entityData.get(ARMOR_DICE);
+    }
+
+    /**
+     * Marks this dice as a health dice (only modifies max health).
+     */
+    public void setHealthDice(boolean health) {
+        entityData.set(HEALTH_DICE, health);
+    }
+
+    public boolean isHealthDice() {
+        return entityData.get(HEALTH_DICE);
     }
 
     public void setOwner(Player player) {
@@ -296,6 +362,9 @@ public class RollingDiceEntity extends Entity {
         entityData.set(STOPPED, input.getBooleanOr("Stopped", false));
         entityData.set(BADLUCK, input.getBooleanOr("Badluck", false));
         entityData.set(FORTUNE, input.getBooleanOr("Fortune", false));
+        entityData.set(DAMAGE_DICE, input.getBooleanOr("DamageDice", false));
+        entityData.set(ARMOR_DICE, input.getBooleanOr("ArmorDice", false));
+        entityData.set(HEALTH_DICE, input.getBooleanOr("HealthDice", false));
     }
 
     @Override
@@ -311,6 +380,9 @@ public class RollingDiceEntity extends Entity {
         output.putBoolean("Stopped", entityData.get(STOPPED));
         output.putBoolean("Badluck", entityData.get(BADLUCK));
         output.putBoolean("Fortune", entityData.get(FORTUNE));
+        output.putBoolean("DamageDice", entityData.get(DAMAGE_DICE));
+        output.putBoolean("ArmorDice", entityData.get(ARMOR_DICE));
+        output.putBoolean("HealthDice", entityData.get(HEALTH_DICE));
     }
 
     @Override
