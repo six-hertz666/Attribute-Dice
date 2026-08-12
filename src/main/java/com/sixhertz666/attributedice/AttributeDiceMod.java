@@ -102,24 +102,27 @@ public class AttributeDiceMod implements ModInitializer {
 
         RandomSource random = level.getRandom();
 
+        // 普通骰子使用 "dice_" 前缀修改器ID
+        String modifierPrefix = "dice_";
+
         switch (roll) {
             case 6:
-                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false);
+                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false, modifierPrefix);
                 break;
             case 5:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false, modifierPrefix);
                 break;
             case 4:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, targetingOther, false, modifierPrefix);
                 break;
             case 3:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll3LossMin, CONFIG.roll3LossMax), true, user, targetingOther, false, modifierPrefix);
                 break;
             case 2:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll2LossMin, CONFIG.roll2LossMax), true, user, targetingOther, false, modifierPrefix);
                 break;
             case 1:
-                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther, false);
+                applyAttributeChange(target, random, CONFIG.roll1Loss, true, user, targetingOther, false, modifierPrefix);
                 if (CONFIG.enableLightning) {
                     strikeWithLightning(level, target, CONFIG.lightningDamage);
                 }
@@ -159,27 +162,29 @@ public class AttributeDiceMod implements ModInitializer {
 
         RandomSource random = level.getRandom();
 
-        // 全部为减少效果（negative=true）；1点不触发闪电。
-        // 使用 permanent=true：每次生成唯一的修改器 ID 并永久保存，
+        // 霉运骰子使用 "badluck_dice_" 前缀修改器ID
+        // permanent=true：每次生成唯一的修改器 ID 并永久保存，
         // 这样减少效果会累积，不会因为替换旧修改器而导致属性值反弹。
+        String modifierPrefix = "badluck_dice_";
+
         switch (roll) {
             case 6:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck6LossMin, CONFIG.badluck6LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck6LossMin, CONFIG.badluck6LossMax), true, user, targetingOther, true, modifierPrefix);
                 break;
             case 5:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck5LossMin, CONFIG.badluck5LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck5LossMin, CONFIG.badluck5LossMax), true, user, targetingOther, true, modifierPrefix);
                 break;
             case 4:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck4LossMin, CONFIG.badluck4LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck4LossMin, CONFIG.badluck4LossMax), true, user, targetingOther, true, modifierPrefix);
                 break;
             case 3:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck3LossMin, CONFIG.badluck3LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck3LossMin, CONFIG.badluck3LossMax), true, user, targetingOther, true, modifierPrefix);
                 break;
             case 2:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck2LossMin, CONFIG.badluck2LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck2LossMin, CONFIG.badluck2LossMax), true, user, targetingOther, true, modifierPrefix);
                 break;
             case 1:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck1LossMin, CONFIG.badluck1LossMax), true, user, targetingOther, true);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.badluck1LossMin, CONFIG.badluck1LossMax), true, user, targetingOther, true, modifierPrefix);
                 // 霉运骰子 1 点不触发闪电。
                 break;
         }
@@ -217,19 +222,26 @@ public class AttributeDiceMod implements ModInitializer {
 
         RandomSource random = level.getRandom();
 
-        // 财富骰子所有结果都为增加效果（negative=false）
-        // 使用与普通骰子相同的临时修改器（permanent=false）
+        // 财富骰子使用独立的 "fortune_dice_" 前缀修改器ID，避免与普通骰子冲突
+        // 同时使用财富骰子专属的配置数值
+        //
+        // 关键修复：permanent=true，每次生成唯一的修改器 ID（含 UUID）并调用
+        // addPermanentModifier，使增益永久累积。之前 permanent=false 使用固定 ID，
+        // 每次掷骰子会先 removeModifier 再 addTransientModifier，若新值 < 旧值，
+        // 属性反而降低（这就是"财富骰子数值降低"BUG 的根因）。
+        String modifierPrefix = "fortune_dice_";
+
         switch (roll) {
             case 6:
-                applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, false, false);
+                applyAttributeChange(target, random, CONFIG.fortune6Gain, false, user, false, true, modifierPrefix);
                 grantLoot(level, user, "minecraft:chests/bastion/treasure");
                 break;
             case 5:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, false, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.fortune5GainMin, CONFIG.fortune5GainMax), false, user, false, true, modifierPrefix);
                 grantLoot(level, user, "minecraft:chests/desert_pyramid");
                 break;
             case 4:
-                applyAttributeChange(target, random, randomInRange(random, CONFIG.roll4GainMin, CONFIG.roll4GainMax), false, user, false, false);
+                applyAttributeChange(target, random, randomInRange(random, CONFIG.fortune4GainMin, CONFIG.fortune4GainMax), false, user, false, true, modifierPrefix);
                 grantLoot(level, user, "minecraft:chests/village/village_toolsmith");
                 break;
         }
@@ -315,11 +327,15 @@ public class AttributeDiceMod implements ModInitializer {
      * @param permanent if true, uses a unique modifier id and a permanent
      *                  modifier so that effects accumulate across multiple
      *                  rolls instead of replacing the previous modifier
+     * @param modifierPrefix prefix used for the modifier resource id; different
+     *                       dice types use different prefixes so their modifiers
+     *                       don't overwrite each other (prevents "gain replaced
+     *                       by smaller gain = stat loss" bugs)
      */
     private static void applyAttributeChange(LivingEntity target, RandomSource random,
                                               int amount, boolean negative,
                                               Player user, boolean targetingOther,
-                                              boolean permanent) {
+                                              boolean permanent, String modifierPrefix) {
         List<Holder<Attribute>> choices = List.of(
                 Attributes.ATTACK_DAMAGE,
                 Attributes.ARMOR,
@@ -334,15 +350,13 @@ public class AttributeDiceMod implements ModInitializer {
             return;
         }
 
-        ResourceModifierKey key = ResourceModifierKey.forAttribute(chosen);
+        ResourceModifierKey key = ResourceModifierKey.forAttribute(chosen, modifierPrefix);
         Identifier modifierId;
         if (permanent) {
-            // 每次生成唯一的修改器 ID，使减少效果累积而不会替换旧修改器。
-            // 修复了"有时增加有时减少"的问题：之前使用固定 ID 会先移除
-            // 旧修改器再添加新的，当新减少量小于旧减少量时属性值会反弹。
+            // 每次生成唯一的修改器 ID，使效果累积而不会替换旧修改器。
             modifierId = AttributeDiceMod.id(key.path() + "_" + UUID.randomUUID());
         } else {
-            // 固定 ID，替换旧修改器（普通骰子的原行为）。
+            // 固定 ID，仅替换同前缀的旧修改器（不同骰子类型互不干扰）。
             modifierId = AttributeDiceMod.id(key.path());
             if (instance.getModifier(modifierId) != null) {
                 instance.removeModifier(modifierId);
@@ -401,17 +415,17 @@ public class AttributeDiceMod implements ModInitializer {
      * resource location and a translation key for the chat feedback.
      */
     private record ResourceModifierKey(String path, String translationKey) {
-        static ResourceModifierKey forAttribute(Holder<Attribute> attribute) {
+        static ResourceModifierKey forAttribute(Holder<Attribute> attribute, String modifierPrefix) {
             if (attribute == Attributes.ATTACK_DAMAGE) {
-                return new ResourceModifierKey("dice_attack_damage", "attribute_dice.attr.attack_damage");
+                return new ResourceModifierKey(modifierPrefix + "attack_damage", "attribute_dice.attr.attack_damage");
             }
             if (attribute == Attributes.ARMOR) {
-                return new ResourceModifierKey("dice_armor", "attribute_dice.attr.armor");
+                return new ResourceModifierKey(modifierPrefix + "armor", "attribute_dice.attr.armor");
             }
             if (attribute == Attributes.MAX_HEALTH) {
-                return new ResourceModifierKey("dice_max_health", "attribute_dice.attr.max_health");
+                return new ResourceModifierKey(modifierPrefix + "max_health", "attribute_dice.attr.max_health");
             }
-            return new ResourceModifierKey("dice_generic", "attribute_dice.attr.generic");
+            return new ResourceModifierKey(modifierPrefix + "generic", "attribute_dice.attr.generic");
         }
     }
 }

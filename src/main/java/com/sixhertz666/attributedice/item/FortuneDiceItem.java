@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 /**
  * The fortune dice item. Can only be used on the player themselves (no
@@ -41,12 +42,15 @@ public class FortuneDiceItem extends Item {
         dice.setOwner(player);
         dice.setFortune(true);
 
-        // Spawn the dice about 2 blocks in front of the player's eyes.
-        // Fortune dice can only target the player themselves.
-        var lookVec = player.getLookAngle();
-        double spawnX = player.getEyePosition().x + lookVec.x * 2.0;
-        double spawnY = player.getEyePosition().y + lookVec.y * 2.0;
-        double spawnZ = player.getEyePosition().z + lookVec.z * 2.0;
+        // 财富骰子只能对自己使用：设置 target 为玩家自己，
+        // 这样骰子会在 tick() 中实时跟随玩家头顶移动。
+        dice.setTarget(player);
+
+        // 初始位置设在玩家头顶上方
+        AABB box = player.getBoundingBox();
+        double spawnX = box.getCenter().x;
+        double spawnY = box.maxY + 1.5;
+        double spawnZ = box.getCenter().z;
         dice.setPos(spawnX, spawnY, spawnZ);
 
         dice.setInitialRotation(player.getYRot(), 0.0F);

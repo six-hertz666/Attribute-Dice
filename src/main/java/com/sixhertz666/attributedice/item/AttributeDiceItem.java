@@ -70,12 +70,13 @@ public class AttributeDiceItem extends Item {
             dice.setPos(spawnX, spawnY, spawnZ);
             dice.setTarget(target);
         } else {
-            // Default behaviour: spawn the dice about 2 blocks in front of the
-            // player's eyes.
-            var lookVec = player.getLookAngle();
-            double spawnX = player.getEyePosition().x + lookVec.x * 2.0;
-            double spawnY = player.getEyePosition().y + lookVec.y * 2.0;
-            double spawnZ = player.getEyePosition().z + lookVec.z * 2.0;
+            // 对自己使用：设置 target 为玩家自己，
+            // 这样骰子会在 tick() 中实时跟随玩家头顶移动。
+            dice.setTarget(player);
+            AABB box = player.getBoundingBox();
+            double spawnX = box.getCenter().x;
+            double spawnY = box.maxY + SPAWN_OFFSET_ABOVE_TARGET;
+            double spawnZ = box.getCenter().z;
             dice.setPos(spawnX, spawnY, spawnZ);
         }
 

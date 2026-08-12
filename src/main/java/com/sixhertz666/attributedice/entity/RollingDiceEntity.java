@@ -1,6 +1,7 @@
 package com.sixhertz666.attributedice.entity;
 
 import com.sixhertz666.attributedice.AttributeDiceMod;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -56,6 +57,21 @@ public class RollingDiceEntity extends Entity {
             SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.BOOLEAN);
 
     /**
+     * 同步到客户端的目标实体 UUID（字符串形式）。
+     *
+     * <p>关键修复：之前 targetUuid 只是一个普通字段，没有同步到客户端，
+     * 导致客户端的 tick() 中 targetUuid 永远是 null，if (targetUuid != null)
+     * 永远是 false，客户端根本不执行跟随逻辑。这就是骰子"只有开始和结束
+     * 时位置正确"的根本原因——客户端只能依赖服务器端的位置同步包，
+     * 而服务器端的位置更新频率受限于网络同步，所以看起来是离散的。
+     *
+     * <p>将 targetUuid 通过 SynchedEntityData 同步后，客户端在 tick() 中
+     * 也能读取到目标 UUID，从而在本地每 tick 更新位置，实现真正的实时跟随。
+     */
+    private static final EntityDataAccessor<String> TARGET_UUID =
+            SynchedEntityData.defineId(RollingDiceEntity.class, EntityDataSerializers.STRING);
+
+    /**
      * Vertical offset above the target entity's bounding box top. Kept in
      * sync with {@code AttributeDiceItem.SPAWN_OFFSET_ABOVE_TARGET} so the
      * dice stays at the same height it was spawned at while following the
@@ -90,29 +106,58 @@ public class RollingDiceEntity extends Entity {
         builder.define(STOPPED, false);
         builder.define(BADLUCK, false);
         builder.define(FORTUNE, false);
+        builder.define(TARGET_UUID, "");
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        if (!level().isClientSide()) {
-            // While a target is set and still alive, follow it so the dice
-            // stays floating above the entity's head as it moves around. This
-            // applies both during the spin and after the dice has stopped, up
-            // until the entity is discarded. Position changes are synced to
-            // clients through the standard entity sync machinery.
-            ServerLevel serverLevel = (ServerLevel) level();
-            if (targetUuid != null) {
-                Entity entity = serverLevel.getEntity(targetUuid);
-                if (entity instanceof LivingEntity living && living.isAlive()) {
-                    AABB box = living.getBoundingBox();
-                    double followX = box.getCenter().x;
-                    double followY = box.maxY + SPAWN_OFFSET_ABOVE_TARGET;
-                    double followZ = box.getCenter().z;
-                    setPos(followX, followY, followZ);
+        // ===== 客户端 + 服务器端都执行跟随逻辑 =====
+        // 关键修复：从 SynchedEntityData 读取 target UUID 字符串，
+        // 这样客户端（targetUuid 字段为 null）也能获取到服务器端设置的 target。
+        // 之前 targetUuid 只是普通字段没同步，导致客户端 if 判断永远 false，
+        // 跟随逻辑根本不执行。
+        if (targetUuid == null) {
+            String synced = entityData.get(TARGET_UUID);
+            if (synced != null && !synced.isEmpty()) {
+                try {
+                    targetUuid = UUID.fromString(synced);
+                } catch (IllegalArgumentException ignored) {
+                    targetUuid = null;
                 }
             }
+        }
+
+        if (targetUuid != null) {
+            Level lvl = level();
+            Entity entity;
+            if (lvl instanceof ServerLevel serverLevel) {
+                entity = serverLevel.getEntity(targetUuid);
+            } else if (lvl instanceof ClientLevel clientLevel) {
+                // 客户端侧：通过 UUID 在客户端 level 中查找实体
+                // entitiesForRendering() 是 ClientLevel 上的方法，不在 Level 基类
+                entity = null;
+                for (Entity e : clientLevel.entitiesForRendering()) {
+                    if (e.getUUID().equals(targetUuid)) {
+                        entity = e;
+                        break;
+                    }
+                }
+            } else {
+                entity = null;
+            }
+            if (entity instanceof LivingEntity living && living.isAlive()) {
+                AABB box = living.getBoundingBox();
+                double followX = box.getCenter().x;
+                double followY = box.maxY + SPAWN_OFFSET_ABOVE_TARGET;
+                double followZ = box.getCenter().z;
+                setPos(followX, followY, followZ);
+            }
+        }
+
+        if (!level().isClientSide()) {
+            ServerLevel serverLevel = (ServerLevel) level();
 
             ticksRemaining--;
             if (ticksRemaining <= 0 && !entityData.get(STOPPED)) {
@@ -188,9 +233,13 @@ public class RollingDiceEntity extends Entity {
     /**
      * Sets the entity that will receive attribute changes when the dice
      * resolves. If not set, the owner (player) is the target.
+     *
+     * <p>关键修复：同时将 UUID 同步到 SynchedEntityData，这样客户端
+     * 的骰子实体也能获取到 target UUID，从而在客户端 tick() 中执行跟随逻辑。
      */
     public void setTarget(LivingEntity target) {
         this.targetUuid = target.getUUID();
+        entityData.set(TARGET_UUID, target.getUUID().toString());
     }
 
     /**
@@ -236,6 +285,8 @@ public class RollingDiceEntity extends Entity {
         if (!targetStr.isEmpty()) {
             try {
                 targetUuid = UUID.fromString(targetStr);
+                // 同步到 SynchedEntityData 以便客户端也能获取
+                entityData.set(TARGET_UUID, targetStr);
             } catch (IllegalArgumentException ignored) {
                 targetUuid = null;
             }

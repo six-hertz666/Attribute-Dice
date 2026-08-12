@@ -91,6 +91,20 @@ public class AttributeDiceConfig {
     /** Maximum (inclusive) amount lost when a badluck dice rolls 1. */
     public int badluck1LossMax = 3;
 
+    // ===== 财富骰子（Fortune Dice）配置：所有结果均为增加 =====
+    /** Fixed amount gained when a fortune dice rolls 6. Default: 12. */
+    public int fortune6Gain = 12;
+
+    /** Minimum (inclusive) amount gained when a fortune dice rolls 5. Default: 8. */
+    public int fortune5GainMin = 8;
+    /** Maximum (inclusive) amount gained when a fortune dice rolls 5. Default: 11. */
+    public int fortune5GainMax = 11;
+
+    /** Minimum (inclusive) amount gained when a fortune dice rolls 4. Default: 4. */
+    public int fortune4GainMin = 4;
+    /** Maximum (inclusive) amount gained when a fortune dice rolls 4. Default: 7. */
+    public int fortune4GainMax = 7;
+
     public static AttributeDiceConfig load() {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         Path configFile = configDir.resolve("attribute_dice.json");
@@ -138,6 +152,13 @@ public class AttributeDiceConfig {
         config.badluck2LossMax = Math.max(config.badluck2LossMin, config.badluck2LossMax);
         config.badluck1LossMin = Math.max(0, config.badluck1LossMin);
         config.badluck1LossMax = Math.max(config.badluck1LossMin, config.badluck1LossMax);
+
+        // 财富骰子范围 clamp
+        config.fortune6Gain = Math.max(0, config.fortune6Gain);
+        config.fortune5GainMin = Math.max(0, config.fortune5GainMin);
+        config.fortune5GainMax = Math.max(config.fortune5GainMin, config.fortune5GainMax);
+        config.fortune4GainMin = Math.max(0, config.fortune4GainMin);
+        config.fortune4GainMax = Math.max(config.fortune4GainMin, config.fortune4GainMax);
 
         try {
             Files.createDirectories(configDir);
