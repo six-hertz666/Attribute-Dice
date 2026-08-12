@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -43,7 +44,15 @@ public class BossDropHandler {
 
             if (count > 0) {
                 ItemStack stack = new ItemStack(ModItems.ATTRIBUTE_DICE, count);
-                entity.spawnAtLocation(stack);
+                ItemEntity itemEntity = new ItemEntity(
+                    serverLevel,
+                    entity.getX(),
+                    entity.getY(),
+                    entity.getZ(),
+                    stack
+                );
+                itemEntity.setDefaultPickUpDelay();
+                serverLevel.addFreshEntity(itemEntity);
             }
         });
     }
