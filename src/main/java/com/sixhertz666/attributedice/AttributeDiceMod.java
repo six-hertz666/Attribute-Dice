@@ -130,6 +130,10 @@ public class AttributeDiceMod implements ModInitializer {
         switch (roll) {
             case 6:
                 applyAttributeChange(target, random, CONFIG.roll6Gain, false, user, targetingOther, false, modifierPrefix, fixedAttribute);
+                // 幸运值机制：只有普通骰子（非专用骰子）对自己使用时才增加幸运值
+                if (fixedAttribute == null && target == user) {
+                    addLuckToPlayer(user, random);
+                }
                 break;
             case 5:
                 applyAttributeChange(target, random, randomInRange(random, CONFIG.roll5GainMin, CONFIG.roll5GainMax), false, user, targetingOther, false, modifierPrefix, fixedAttribute);
@@ -494,6 +498,40 @@ public class AttributeDiceMod implements ModInitializer {
         target.hurtServer(level, level.damageSources().lightningBolt(), damage);
         level.playSound(null, target.blockPosition(),
                 SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 1.0F, 1.0F);
+    }
+
+    /**
+     * Adds a luck attribute modifier to the player when the regular attribute
+     * dice rolls a 6. The amount is randomly chosen from the configured range.
+     *
+     * <p>Only applies to the regular attribute dice (not damage/armor/health
+     * dice variants) and only when rolling on the player themselves (not on
+     * other entities).
+     */
+    private static void addLuckToPlayer(Player user, RandomSource random) {
+        if (CONFIG == null) {
+            CONFIG = AttributeDiceConfig.load();
+        }
+        int luckAmount = randomInRange(random, CONFIG.luckOnRoll6Min, CONFIG.luckOnRoll6Max);
+        if (luckAmount <= 0) {
+            return;
+        }
+
+        AttributeInstance luckInstance = user.getAttribute(Attributes.LUCK);
+        if (luckInstance == null) {
+            return;
+        }
+
+        Identifier luckModifierId = AttributeDiceMod.id("dice_luck_" + UUID.randomUUID());
+        AttributeModifier luckModifier = new AttributeModifier(
+                luckModifierId,
+                luckAmount,
+                AttributeModifier.Operation.ADD_VALUE
+        );
+        luckInstance.addPermanentModifier(luckModifier);
+
+        Component feedback = Component.translatable("attribute_dice.message.luck_gain", luckAmount);
+        user.displayClientMessage(feedback, false);
     }
 
     /**

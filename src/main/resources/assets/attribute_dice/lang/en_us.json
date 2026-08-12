@@ -22,5 +22,6 @@
   "attribute_dice.attr.attack_damage": "Attack Damage",
   "attribute_dice.attr.armor": "Armor",
   "attribute_dice.attr.max_health": "Max Health",
-  "attribute_dice.attr.generic": "Attribute"
+  "attribute_dice.attr.generic": "Attribute",
+  "attribute_dice.message.luck_gain": "Luck +%s!"
 }

@@ -105,6 +105,14 @@ public class AttributeDiceConfig {
     /** Maximum (inclusive) amount gained when a fortune dice rolls 4. Default: 7. */
     public int fortune4GainMax = 7;
 
+    // ===== 幸运值（Luck）机制配置 =====
+    /** 普通属性骰子开出6点时增加幸运值的最小值（包含）。默认：0。 */
+    public int luckOnRoll6Min = 0;
+    /** 普通属性骰子开出6点时增加幸运值的最大值（包含）。默认：2。 */
+    public int luckOnRoll6Max = 2;
+    /** 幸运值超过此阈值时，骰子只会 rolls 4/5/6 点。默认：100。 */
+    public int luckThreshold = 100;
+
     public static AttributeDiceConfig load() {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         Path configFile = configDir.resolve("attribute_dice.json");
@@ -159,6 +167,11 @@ public class AttributeDiceConfig {
         config.fortune5GainMax = Math.max(config.fortune5GainMin, config.fortune5GainMax);
         config.fortune4GainMin = Math.max(0, config.fortune4GainMin);
         config.fortune4GainMax = Math.max(config.fortune4GainMin, config.fortune4GainMax);
+
+        // 幸运值机制 clamp
+        config.luckOnRoll6Min = Math.max(0, config.luckOnRoll6Min);
+        config.luckOnRoll6Max = Math.max(config.luckOnRoll6Min, config.luckOnRoll6Max);
+        config.luckThreshold = Math.max(0, config.luckThreshold);
 
         try {
             Files.createDirectories(configDir);

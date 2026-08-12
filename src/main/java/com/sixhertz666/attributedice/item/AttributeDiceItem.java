@@ -88,7 +88,13 @@ public class AttributeDiceItem extends Item {
 
         // Roll a fair 1-6 result and store it on the entity so the client
         // can render it spinning while the server awaits the tick timer.
-        int roll = serverLevel.getRandom().nextIntBetweenInclusive(1, 6);
+        int roll;
+        // 幸运值机制：只有普通属性骰子（非子类）才有幸运阈值判断
+        if (isLuckEnabled() && player.getLuck() > AttributeDiceMod.CONFIG.luckThreshold) {
+            roll = serverLevel.getRandom().nextIntBetweenInclusive(4, 6);
+        } else {
+            roll = serverLevel.getRandom().nextIntBetweenInclusive(1, 6);
+        }
         dice.setRollResult(roll);
         dice.setRollDurationTicks(AttributeDiceMod.CONFIG.rollDurationTicks);
 
@@ -149,5 +155,15 @@ public class AttributeDiceItem extends Item {
      */
     protected void configureDice(RollingDiceEntity dice) {
         // no-op: regular dice has no variant flag
+    }
+
+    /**
+     * Returns whether the luck mechanism (luck threshold roll restriction)
+     * is enabled for this dice type. Only the base attribute dice returns
+     * {@code true}; subclasses (damage/armor/health dice) return {@code false}
+     * because the luck mechanism does not apply to them.
+     */
+    protected boolean isLuckEnabled() {
+        return true;
     }
 }

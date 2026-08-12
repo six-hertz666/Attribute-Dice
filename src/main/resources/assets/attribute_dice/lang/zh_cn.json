@@ -22,5 +22,6 @@
   "attribute_dice.attr.attack_damage": "攻击伤害",
   "attribute_dice.attr.armor": "护甲",
   "attribute_dice.attr.max_health": "生命上限",
-  "attribute_dice.attr.generic": "属性"
+  "attribute_dice.attr.generic": "属性",
+  "attribute_dice.message.luck_gain": "幸运值 +%s！"
 }

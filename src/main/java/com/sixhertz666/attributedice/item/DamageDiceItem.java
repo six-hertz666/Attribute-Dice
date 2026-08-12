@@ -17,4 +17,9 @@ public class DamageDiceItem extends AttributeDiceItem {
     protected void configureDice(RollingDiceEntity dice) {
         dice.setDamageDice(true);
     }
+
+    @Override
+    protected boolean isLuckEnabled() {
+        return false;
+    }
 }
