@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GGG",
+    "GRG",
+    "GGG"
+  ],
+  "key": {
+    "R": "attribute_dice:random_potion",
+    "G": "minecraft:gold_ingot"
+  },
+  "result": {
+    "id": "attribute_dice:dedebuff_potion",
+    "count": 1
+  }
+}

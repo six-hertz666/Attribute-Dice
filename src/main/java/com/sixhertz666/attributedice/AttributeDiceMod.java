@@ -30,6 +30,8 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -532,6 +534,78 @@ public class AttributeDiceMod implements ModInitializer {
 
         Component feedback = Component.translatable("attribute_dice.message.luck_gain", luckAmount);
         user.displayClientMessage(feedback, false);
+    }
+
+    // ===== 属性重置方法（供遗忘药水 / 清负药水使用） =====
+
+    /**
+     * Removes all attribute modifiers added by this mod from the player,
+     * effectively resetting all tracked attributes (attack damage, armor,
+     * max health, and luck) to their vanilla default values.
+     *
+     * @param player the player whose attributes to reset
+     */
+    public static void resetAllAttributes(Player player) {
+        removeModModifiers(player, Attributes.ATTACK_DAMAGE);
+        removeModModifiers(player, Attributes.ARMOR);
+        removeModModifiers(player, Attributes.MAX_HEALTH);
+        removeModModifiers(player, Attributes.LUCK);
+    }
+
+    /**
+     * Removes mod-added attribute modifiers only from attributes whose current
+     * value is below the vanilla default (base value). Attributes at or above
+     * default are left untouched.
+     *
+     * @param player the player whose attributes to check and reset
+     * @return the number of attributes that were reset
+     */
+    public static int resetBelowDefaultAttributes(Player player) {
+        int count = 0;
+        if (resetIfBelowDefault(player, Attributes.ATTACK_DAMAGE)) count++;
+        if (resetIfBelowDefault(player, Attributes.ARMOR)) count++;
+        if (resetIfBelowDefault(player, Attributes.MAX_HEALTH)) count++;
+        return count;
+    }
+
+    /**
+     * Removes all attribute modifiers whose ID namespace matches this mod's
+     * MOD_ID from the given attribute instance on the player.
+     */
+    private static void removeModModifiers(Player player, Holder<Attribute> attribute) {
+        AttributeInstance instance = player.getAttribute(attribute);
+        if (instance == null) {
+            return;
+        }
+
+        List<Identifier> toRemove = new ArrayList<>();
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.id().getNamespace().equals(MOD_ID)) {
+                toRemove.add(modifier.id());
+            }
+        }
+        for (Identifier id : toRemove) {
+            instance.removeModifier(id);
+        }
+    }
+
+    /**
+     * Checks if the attribute's current value is below its base value, and
+     * if so, removes all mod-added modifiers from it.
+     *
+     * @return true if modifiers were removed, false otherwise
+     */
+    private static boolean resetIfBelowDefault(Player player, Holder<Attribute> attribute) {
+        AttributeInstance instance = player.getAttribute(attribute);
+        if (instance == null) {
+            return false;
+        }
+
+        if (instance.getValue() < instance.getBaseValue()) {
+            removeModModifiers(player, attribute);
+            return true;
+        }
+        return false;
     }
 
     /**

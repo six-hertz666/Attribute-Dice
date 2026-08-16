@@ -50,6 +50,24 @@ public class ModItems {
             new Item.Properties().stacksTo(16)
     );
 
+    public static final Item RANDOM_POTION = register(
+            "random_potion",
+            RandomPotionItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
+    public static final Item FORGET_POTION = register(
+            "forget_potion",
+            ForgetPotionItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
+    public static final Item DEDEBUFF_POTION = register(
+            "dedebuff_potion",
+            DedebuffPotionItem::new,
+            new Item.Properties().stacksTo(16)
+    );
+
     public static <T extends Item> T register(String name, Function<Item.Properties, T> itemFactory, Item.Properties settings) {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, AttributeDiceMod.id(name));
         T item = itemFactory.apply(settings.setId(itemKey));

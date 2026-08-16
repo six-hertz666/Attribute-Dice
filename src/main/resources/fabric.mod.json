@@ -23,6 +23,9 @@
       "com.sixhertz666.attributedice.client.AttributeDiceClient"
     ]
   },
+  "mixins": [
+    "attribute_dice.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.18.4",
     "minecraft": "~1.21.11",

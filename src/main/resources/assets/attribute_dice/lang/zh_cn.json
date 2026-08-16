@@ -6,6 +6,9 @@
   "item.attribute_dice.damage_dice": "伤害骰子",
   "item.attribute_dice.armor_dice": "护甲骰子",
   "item.attribute_dice.health_dice": "生命骰子",
+  "item.attribute_dice.random_potion": "随机药水",
+  "item.attribute_dice.forget_potion": "遗忘药水",
+  "item.attribute_dice.dedebuff_potion": "清负药水",
   "entity.attribute_dice.rolling_dice": "旋转骰子",
   "attribute_dice.message.rolled": "你掷出了 %s 点！",
   "attribute_dice.message.rolled_entity": "你对 %s 掷出了 %s 点！",
@@ -23,5 +26,8 @@
   "attribute_dice.attr.armor": "护甲",
   "attribute_dice.attr.max_health": "生命上限",
   "attribute_dice.attr.generic": "属性",
-  "attribute_dice.message.luck_gain": "幸运值 +%s！"
+  "attribute_dice.message.luck_gain": "幸运值 +%s！",
+  "attribute_dice.message.forget_reset": "所有属性已恢复至默认值！",
+  "attribute_dice.message.dedebuff_reset": "已恢复 %s 个低于默认值的属性！",
+  "attribute_dice.message.dedebuff_nothing": "没有低于默认值的属性。"
 }

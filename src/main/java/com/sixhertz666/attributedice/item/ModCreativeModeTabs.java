@@ -34,6 +34,9 @@ public class ModCreativeModeTabs {
                             output.accept(ModItems.DAMAGE_DICE);
                             output.accept(ModItems.ARMOR_DICE);
                             output.accept(ModItems.HEALTH_DICE);
+                            output.accept(ModItems.RANDOM_POTION);
+                            output.accept(ModItems.FORGET_POTION);
+                            output.accept(ModItems.DEDEBUFF_POTION);
                         })
                         .build()
         );
